@@ -10,8 +10,25 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 console.log("[START] starting handshake automation...");
 
-puppeteer
-  .launch({
+async function main() {
+  const init = await initializeHandshake();
+  if (!init) {
+    return;
+  }
+
+  const browser = init.browser;
+  const page = init.page;
+
+  try {
+  } catch (error) {
+  } finally {
+    console.log("[FINISH] closing browser...");
+    await browser.close();
+  }
+}
+
+async function initializeHandshake() {
+  const browser = await puppeteer.launch({
     headless: false,
     args: [
       "--no-sandbox", // Disable sandbox for better performance
@@ -20,113 +37,109 @@ puppeteer
       "--disable-gpu", // Disable GPU hardware acceleration
       "--disable-software-rasterizer", // Disable software rendering
     ],
-  })
-  .then(async (browser) => {
+  });
+  try {
+    // open handshake
+    console.log("[1] opening handshake website...");
+    const page = await browser.newPage();
+
+    page.setDefaultTimeout(0); // For waitForSelector, waitForXPath, etc.
+    page.setDefaultNavigationTimeout(0); // For page.goto, page.reload, etc.
+
+    await page.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
+    console.log("[SUCCESS]");
+
+    // login
     try {
-      // open handshake
-      console.log("[1] opening handshake website...");
-      const page = await browser.newPage();
+      console.log("[2] logging in...");
+      const ssoButton = await page.waitForSelector(".sso-button");
+      await ssoButton.click();
+      await page.waitForSelector("#username");
+      await page.type("#username", username);
+      await page.type("#password", password);
 
-      page.setDefaultTimeout(0); // For waitForSelector, waitForXPath, etc.
-      page.setDefaultNavigationTimeout(0); // For page.goto, page.reload, etc.
+      await page.waitForSelector("#regularsubmit");
+      await page.click("#regularsubmit");
 
-      await page.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
+      await page.waitForSelector("#trust-browser-button");
+      await page.click("#trust-browser-button");
       console.log("[SUCCESS]");
-
-      // login
-      try {
-        console.log("[2] logging in...");
-        const ssoButton = await page.waitForSelector(".sso-button");
-        await ssoButton.click();
-        await page.waitForSelector("#username");
-        await page.type("#username", username);
-        await page.type("#password", password);
-
-        await page.waitForSelector("#regularsubmit");
-        await page.click("#regularsubmit");
-
-        await page.waitForSelector("#trust-browser-button");
-        await page.click("#trust-browser-button");
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-
-      // Close modal
-      try {
-        console.log("[3] closing modal...");
-        await page.waitForSelector(
-          'button[data-hook="close-bootstrapping-follows-modal"]'
-        );
-        await page.click(
-          'button[data-hook="close-bootstrapping-follows-modal"]'
-        );
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-      await sleep(1000);
-
-      // Click Jobs link
-      try {
-        console.log("[4] navigating to jobs page...");
-        const jobsChild = await page.waitForSelector("text/Jobs");
-        const jobsParent = await jobsChild.evaluateHandle(
-          (el) => el.parentElement
-        );
-        await jobsParent.click();
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-
-      // Click Location button
-      try {
-        console.log("[5] clicking location filter...");
-        await page.waitForSelector(".style__pill-content___QMdlA");
-        const filterButtons = await page.$$(".style__pill-content___QMdlA");
-        console.log(filterButtons);
-        await filterButtons[0].click();
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-
-      // Search for town
-      try {
-        console.log("[6] searching for town...");
-        await page.waitForSelector("#locations-filter");
-        await page.type("#locations-filter", town);
-        await sleep(2000);
-        const checkbox = await page.waitForSelector(`.sc-dTjBdT.iGTHzC`);
-        await checkbox.click();
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-
-      // click internship button
-      try {
-        console.log("[7] clicking location button...");
-        await page.waitForSelector(".style__pill-content___QMdlA");
-        const filterButtons = await page.$$(".style__pill-content___QMdlA");
-        console.log(filterButtons);
-        await filterButtons[2].click();
-        console.log("[SUCCESS]");
-      } catch (error) {
-        console.error("[ERROR]", error);
-        return;
-      }
-      await sleep(10000);
     } catch (error) {
       console.error("[ERROR]", error);
-    } finally {
-      console.log("[EXIT] closing browser...");
-      await browser.close();
+      return;
     }
-  });
+
+    // Close modal
+    try {
+      console.log("[3] closing modal...");
+      await page.waitForSelector(
+        'button[data-hook="close-bootstrapping-follows-modal"]'
+      );
+      await page.click('button[data-hook="close-bootstrapping-follows-modal"]');
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.error("[ERROR]", error);
+      return;
+    }
+    await sleep(1000);
+
+    // Click Jobs link
+    try {
+      console.log("[4] navigating to jobs page...");
+      const jobsChild = await page.waitForSelector("text/Jobs");
+      const jobsParent = await jobsChild.evaluateHandle(
+        (el) => el.parentElement
+      );
+      await jobsParent.click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.error("[ERROR]", error);
+      return;
+    }
+
+    // Click Location button
+    try {
+      console.log("[5] clicking location filter...");
+      await page.waitForSelector(".style__pill-content___QMdlA");
+      const filterButtons = await page.$$(".style__pill-content___QMdlA");
+      await filterButtons[0].click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.error("[ERROR]", error);
+      return;
+    }
+
+    // Search for town
+    try {
+      console.log("[6] searching for town...");
+      await page.waitForSelector("#locations-filter");
+      await page.type("#locations-filter", town);
+      await sleep(2000);
+      const checkbox = await page.waitForSelector(`.sc-dTjBdT.iGTHzC`);
+      await checkbox.click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.error("[ERROR]", error);
+      return;
+    }
+
+    // click internship button
+    try {
+      console.log("[7] clicking location button...");
+      await page.waitForSelector(".style__pill-content___QMdlA");
+      const filterButtons = await page.$$(".style__pill-content___QMdlA");
+      await filterButtons[2].click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.error("[ERROR]", error);
+      return;
+    }
+    console.log("[SUCCESS INITIALIZING]");
+    return { browser, page };
+  } catch (error) {
+    console.error("[ERROR INITIALIZING]", error);
+    return;
+  }
+}
+
+main();
