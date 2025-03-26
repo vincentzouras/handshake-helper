@@ -1,5 +1,6 @@
 import "dotenv/config";
 import puppeteer from "puppeteer"; // puppeteer-extra
+import sendEmail from "./sendEmail";
 //import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 const username = process.env.HANDSHAKE_USERNAME;
@@ -25,9 +26,34 @@ async function main() {
     await page.waitForSelector(`[data-hook="jobs-card"]`);
     const jobs = await page.$$(`[data-hook="jobs-card"]`);
 
-    // search for new jobs every 10 minutes
+    // search for new jobs every 5 minutes
     while (true) {
-      await sleep(5 * 60 * 1000);
+      await sleep(5 * 60 * 1000); // 5 minutes
+      const currJobs = await page.$$(`[data-hook="jobs-card"]`);
+      const newJobs = currJobs.filter((job) => !jobs.includes(job));
+      // notify of new jobs
+      if (newJobs.length > 0) {
+        for (let newJob of newJobs) {
+          const jobLink = await newJob.evaluate((el) =>
+            el.getAttribute("href")
+          );
+          const jobTitle = await newJob.$eval("h3", (el) =>
+            el.textContent.trim()
+          );
+          const companyName = await newJob.$eval("span.sc-eIlWkk", (el) =>
+            el.textContent.trim()
+          );
+          sendEmail(
+            jobTitle,
+            `https://app.joinhandshake.com${jobLink}`,
+            companyName
+          );
+        }
+        console.log("[FOUND NEW JOBS] email sent?");
+        jobs = currJobs;
+      } else {
+        console.log("[NO NEW JOBS]");
+      }
     }
   } catch (error) {
     console.log("[ERROR]");
