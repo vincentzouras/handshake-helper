@@ -12,6 +12,7 @@ console.log("[START] starting handshake automation...");
 
 async function main() {
   const init = await initializeHandshake();
+
   if (!init) {
     return;
   }
@@ -20,7 +21,17 @@ async function main() {
   const page = init.page;
 
   try {
+    // initialize jobs currently being displayed
+    await page.waitForSelector(`[data-hook="jobs-card"]`);
+    const jobs = await page.$$(`[data-hook="jobs-card"]`);
+
+    // search for new jobs every 10 minutes
+    while (true) {
+      await sleep(5 * 60 * 1000);
+    }
   } catch (error) {
+    console.log("[ERROR]");
+    console.error(error);
   } finally {
     console.log("[FINISH] closing browser...");
     await browser.close();
@@ -43,9 +54,6 @@ async function initializeHandshake() {
     console.log("[1] opening handshake website...");
     const page = await browser.newPage();
 
-    page.setDefaultTimeout(0); // For waitForSelector, waitForXPath, etc.
-    page.setDefaultNavigationTimeout(0); // For page.goto, page.reload, etc.
-
     await page.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
     console.log("[SUCCESS]");
 
@@ -65,7 +73,8 @@ async function initializeHandshake() {
       await page.click("#trust-browser-button");
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
 
@@ -78,7 +87,8 @@ async function initializeHandshake() {
       await page.click('button[data-hook="close-bootstrapping-follows-modal"]');
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
     await sleep(1000);
@@ -93,7 +103,8 @@ async function initializeHandshake() {
       await jobsParent.click();
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
 
@@ -105,7 +116,8 @@ async function initializeHandshake() {
       await filterButtons[0].click();
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
 
@@ -119,7 +131,8 @@ async function initializeHandshake() {
       await checkbox.click();
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
 
@@ -131,13 +144,15 @@ async function initializeHandshake() {
       await filterButtons[2].click();
       console.log("[SUCCESS]");
     } catch (error) {
-      console.error("[ERROR]", error);
+      console.log("[ERROR]");
+      console.error(error);
       return;
     }
     console.log("[SUCCESS INITIALIZING]");
     return { browser, page };
   } catch (error) {
-    console.error("[ERROR INITIALIZING]", error);
+    console.log("[ERROR INITIALIZING]");
+    console.error(error);
     return;
   }
 }
