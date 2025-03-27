@@ -28,7 +28,7 @@ async function main() {
     let jobIds = await Promise.all(
       jobElements.map((job) => job.evaluate((el) => el.id))
     );
-
+    jobIds.splice(0, 2);
     // search for new jobs every 5 minutes
     while (true) {
       const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
