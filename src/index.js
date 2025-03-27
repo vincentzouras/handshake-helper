@@ -24,26 +24,35 @@ async function main() {
   try {
     // initialize jobs currently being displayed
     await page.waitForSelector(`[data-hook="jobs-card"]`);
-    const jobs = await page.$$(`[data-hook="jobs-card"]`);
-    jobs.splice(0, 2);
+    const jobElements = await page.$$(`[data-hook="jobs-card"]`);
+    let jobIds = await Promise.all(
+      jobElements.map((job) => job.evaluate((el) => el.id))
+    );
 
     // search for new jobs every 5 minutes
     while (true) {
-      const currJobs = await page.$$(`[data-hook="jobs-card"]`);
-      const newJobs = currJobs.filter((job) => !jobs.includes(job));
+      const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
+      const currJobIds = await Promise.all(
+        currJobElements.map((job) => job.evaluate((el) => el.id))
+      );
+      const newJobsIds = currJobIds.filter((id) => !jobIds.includes(id));
 
       // notify of new jobs
-      if (newJobs.length > 0) {
-        for (let newJob of newJobs) {
+      if (newJobsIds.length > 0) {
+        for (let newJobId of newJobsIds) {
+          const newJob = await page.$(`#${newJobId}`);
           const jobLink = await newJob.evaluate((el) =>
             el.getAttribute("href")
           );
           const jobTitle = await newJob.$eval("h3", (el) =>
             el.textContent.trim()
           );
-          const companyName = await newJob.$eval("span.sc-eIlWkk", (el) =>
-            el.textContent.trim()
+
+          const companyName = await newJob.$eval(
+            "div > div > div > span",
+            (el) => el.textContent.trim()
           );
+
           sendEmail(
             jobTitle,
             `https://app.joinhandshake.com${jobLink}`,
@@ -51,12 +60,12 @@ async function main() {
           );
         }
         console.log("[FOUND NEW JOBS] email sent?");
-        jobs = currJobs;
+        jobIds = currJobIds;
       } else {
         console.log("[NO NEW JOBS] " + new Date().toLocaleString());
       }
       await page.reload();
-      await sleep(1 * 60 * 1000); // 5 minutes
+      await sleep(5 * 60 * 1000); // 5 minutes
     }
   } catch (error) {
     console.log("[ERROR]");

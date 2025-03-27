@@ -1,8 +1,9 @@
 import "dotenv/config";
 import nodemailer from "nodemailer";
 
-const email = process.env.EMAIL;
+const email = process.env.EMAIL_USER;
 const pass = process.env.EMAIL_PASS;
+const emailTo = process.env.EMAIL_TO;
 
 //  SMTP details
 let transporter = nodemailer.createTransport({
@@ -37,7 +38,7 @@ const sendEmail = (jobTitle, jobLink, companyName) => {
 
         <div class="content">
           <div class="job-title">${jobTitle}</div>
-          <div class="company-name">Company: ${companyName}</div>
+          <div class="company-name">${companyName}</div>
 
           <p>Click below to view the full job description and apply:</p>
           <a href="${jobLink}" class="cta-button" target="_blank">View Job</a>
@@ -51,7 +52,7 @@ const sendEmail = (jobTitle, jobLink, companyName) => {
   // Set up email data
   let mailOptions = {
     from: email,
-    to: email,
+    to: emailTo,
     subject: `[JOB ALERT] ${jobTitle}`,
     html: htmlContent,
   };
