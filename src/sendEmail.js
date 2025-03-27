@@ -67,3 +67,5 @@ const sendEmail = (jobTitle, jobLink, companyName) => {
     }
   });
 };
+
+export default sendEmail;

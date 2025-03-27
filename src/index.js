@@ -1,6 +1,6 @@
 import "dotenv/config";
 import puppeteer from "puppeteer"; // puppeteer-extra
-import sendEmail from "./sendEmail";
+import sendEmail from "./sendEmail.js";
 //import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 const username = process.env.HANDSHAKE_USERNAME;
@@ -25,12 +25,13 @@ async function main() {
     // initialize jobs currently being displayed
     await page.waitForSelector(`[data-hook="jobs-card"]`);
     const jobs = await page.$$(`[data-hook="jobs-card"]`);
+    jobs.splice(0, 2);
 
     // search for new jobs every 5 minutes
     while (true) {
-      await sleep(5 * 60 * 1000); // 5 minutes
       const currJobs = await page.$$(`[data-hook="jobs-card"]`);
       const newJobs = currJobs.filter((job) => !jobs.includes(job));
+
       // notify of new jobs
       if (newJobs.length > 0) {
         for (let newJob of newJobs) {
@@ -52,12 +53,15 @@ async function main() {
         console.log("[FOUND NEW JOBS] email sent?");
         jobs = currJobs;
       } else {
-        console.log("[NO NEW JOBS]");
+        console.log("[NO NEW JOBS] " + new Date().toLocaleString());
       }
+      await page.reload();
+      await sleep(1 * 60 * 1000); // 5 minutes
     }
   } catch (error) {
     console.log("[ERROR]");
     console.error(error);
+    await browser.close();
   } finally {
     console.log("[FINISH] closing browser...");
     await browser.close();
@@ -101,23 +105,25 @@ async function initializeHandshake() {
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
 
     // Close modal
     try {
       console.log("[3] closing modal...");
-      await page.waitForSelector(
-        'button[data-hook="close-bootstrapping-follows-modal"]'
-      );
-      await page.click('button[data-hook="close-bootstrapping-follows-modal"]');
+      const closeButton =
+        'button[data-hook="close-bootstrapping-follows-modal"]';
+      await page.waitForSelector(closeButton);
+      await page.click(closeButton);
+      await page.waitForSelector(closeButton, { hidden: true });
       console.log("[SUCCESS]");
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
-    await sleep(1000);
 
     // Click Jobs link
     try {
@@ -127,10 +133,12 @@ async function initializeHandshake() {
         (el) => el.parentElement
       );
       await jobsParent.click();
+      await page.waitForNavigation({ waitUntil: "networkidle0" });
       console.log("[SUCCESS]");
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
 
@@ -144,6 +152,7 @@ async function initializeHandshake() {
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
 
@@ -153,12 +162,13 @@ async function initializeHandshake() {
       await page.waitForSelector("#locations-filter");
       await page.type("#locations-filter", town);
       await sleep(2000);
-      const checkbox = await page.waitForSelector(`.sc-dTjBdT.iGTHzC`);
-      await checkbox.click();
+      const checkboxes = await page.$$('input[type="checkbox"]');
+      await checkboxes[0].click();
       console.log("[SUCCESS]");
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
 
@@ -172,6 +182,7 @@ async function initializeHandshake() {
     } catch (error) {
       console.log("[ERROR]");
       console.error(error);
+      await browser.close();
       return;
     }
     console.log("[SUCCESS INITIALIZING]");
@@ -179,6 +190,7 @@ async function initializeHandshake() {
   } catch (error) {
     console.log("[ERROR INITIALIZING]");
     console.error(error);
+    await browser.close();
     return;
   }
 }
