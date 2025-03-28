@@ -12,14 +12,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 console.log("[START] starting handshake automation...");
 
 async function main() {
-  const init = await initializeHandshake();
+  let init = await initializeHandshake();
 
   if (!init) {
     return;
   }
 
-  const browser = init.browser;
-  const page = init.page;
+  let browser = init.browser;
+  let page = init.page;
 
   try {
     // initialize jobs currently being displayed
@@ -28,9 +28,22 @@ async function main() {
     let jobIds = await Promise.all(
       jobElements.map((job) => job.evaluate((el) => el.id))
     );
-    jobIds.splice(0, 2);
+
     // search for new jobs every 5 minutes
     while (true) {
+      try {
+        await page.waitForSelector(`[data-hook="jobs-card"]`);
+      } catch (error) {
+        console.log("[!] not detecting jobs, reinitializing handshake...");
+        await browser.close();
+        init = await initializeHandshake();
+        if (!init) {
+          return;
+        }
+        browser = init.browser;
+        page = init.page;
+        continue;
+      }
       const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
       const currJobIds = await Promise.all(
         currJobElements.map((job) => job.evaluate((el) => el.id))
@@ -93,6 +106,8 @@ async function initializeHandshake() {
     console.log("[1] opening handshake website...");
     const page = await browser.newPage();
 
+    await page.setDefaultTimeout(120000); // 2 minutes in milliseconds
+
     await page.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
     console.log("[SUCCESS]");
 
@@ -151,49 +166,49 @@ async function initializeHandshake() {
       return;
     }
 
-    // Click Location button
-    try {
-      console.log("[5] clicking location filter...");
-      await page.waitForSelector(".style__pill-content___QMdlA");
-      const filterButtons = await page.$$(".style__pill-content___QMdlA");
-      await filterButtons[0].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
+    // // Click Location button
+    // try {
+    //   console.log("[5] clicking location filter...");
+    //   await page.waitForSelector(".style__pill-content___QMdlA");
+    //   const filterButtons = await page.$$(".style__pill-content___QMdlA");
+    //   await filterButtons[0].click();
+    //   console.log("[SUCCESS]");
+    // } catch (error) {
+    //   console.log("[ERROR]");
+    //   console.error(error);
+    //   await browser.close();
+    //   return;
+    // }
 
-    // Search for town
-    try {
-      console.log("[6] searching for town...");
-      await page.waitForSelector("#locations-filter");
-      await page.type("#locations-filter", town);
-      await sleep(2000);
-      const checkboxes = await page.$$('input[type="checkbox"]');
-      await checkboxes[0].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
+    // // Search for town
+    // try {
+    //   console.log("[6] searching for town...");
+    //   await page.waitForSelector("#locations-filter");
+    //   await page.type("#locations-filter", town);
+    //   await sleep(2000);
+    //   const checkboxes = await page.$$('input[type="checkbox"]');
+    //   await checkboxes[0].click();
+    //   console.log("[SUCCESS]");
+    // } catch (error) {
+    //   console.log("[ERROR]");
+    //   console.error(error);
+    //   await browser.close();
+    //   return;
+    // }
 
     // click internship button
-    try {
-      console.log("[7] clicking location button...");
-      await page.waitForSelector(".style__pill-content___QMdlA");
-      const filterButtons = await page.$$(".style__pill-content___QMdlA");
-      await filterButtons[2].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
+    // try {
+    //   console.log("[7] clicking internship button...");
+    //   await page.waitForSelector(".style__pill-content___QMdlA");
+    //   const filterButtons = await page.$$(".style__pill-content___QMdlA");
+    //   await filterButtons[2].click();
+    //   console.log("[SUCCESS]");
+    // } catch (error) {
+    //   console.log("[ERROR]");
+    //   console.error(error);
+    //   await browser.close();
+    //   return;
+    // }
 
     // filter by date
     try {
