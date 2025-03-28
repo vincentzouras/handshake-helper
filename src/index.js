@@ -194,6 +194,24 @@ async function initializeHandshake() {
       await browser.close();
       return;
     }
+
+    // filter by date
+    try {
+      console.log("[8] filtering by date...");
+      const sortByButton = await page.waitForSelector(
+        "button[data-hook='button'][aria-label='Filter by']"
+      );
+      await sortByButton.click();
+      const sortByOptions = await page.waitForSelector("#sort-by-created_at");
+      await sortByOptions.click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.log("[ERROR]");
+      console.error(error);
+      await browser.close();
+      return;
+    }
+
     console.log("[SUCCESS INITIALIZING]");
     return { browser, page };
   } catch (error) {
