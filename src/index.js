@@ -165,53 +165,72 @@ async function initializeHandshake() {
       return;
     }
 
-    // // Click Location button
-    // try {
-    //   console.log("[5] clicking location filter...");
-    //   await page.waitForSelector(".style__pill-content___QMdlA");
-    //   const filterButtons = await page.$$(".style__pill-content___QMdlA");
-    //   await filterButtons[0].click();
-    //   console.log("[SUCCESS]");
-    // } catch (error) {
-    //   console.log("[ERROR]");
-    //   console.error(error);
-    //   await browser.close();
-    //   return;
-    // }
+    // Click Location button
+    try {
+      console.log("[5] clicking location filter...");
+      await page.waitForSelector(".style__pill-content___QMdlA");
+      const filterButtons = await page.$$(".style__pill-content___QMdlA");
+      await filterButtons[0].click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.log("[ERROR]");
+      console.error(error);
+      await browser.close();
+      return;
+    }
 
-    // // Search for town
-    // try {
-    //   console.log("[6] searching for town...");
-    //   await page.waitForSelector("#locations-filter");
-    //   await page.type("#locations-filter", town);
-    //   await sleep(2000);
-    //   const checkboxes = await page.$$('input[type="checkbox"]');
-    //   await checkboxes[0].click();
-    //   console.log("[SUCCESS]");
-    // } catch (error) {
-    //   console.log("[ERROR]");
-    //   console.error(error);
-    //   await browser.close();
-    //   return;
-    // }
+    // Search for town
+    try {
+      console.log("[6] searching for town...");
+      await page.waitForSelector("#locations-filter");
+      await page.type("#locations-filter", town);
+      await sleep(2000);
+      const checkboxes = await page.$$('input[type="checkbox"]');
+      await checkboxes[0].click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.log("[ERROR]");
+      console.error(error);
+      await browser.close();
+      return;
+    }
+
+    // set distance to 25 miles
+    try {
+      console.log("[7] setting distance to 25 miles...");
+      const slider = await page.$('input[name="locationDistance"]');
+      await slider.scrollIntoView();
+      const box = await slider.boundingBox();
+      const xOffset = box.width * 0.3;
+      await page.mouse.move(box.x + 1, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + xOffset, box.y + box.height / 2);
+      await page.mouse.up();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.log("[ERROR]");
+      console.error(error);
+      await browser.close();
+      return;
+    }
 
     // click internship button
-    // try {
-    //   console.log("[7] clicking internship button...");
-    //   await page.waitForSelector(".style__pill-content___QMdlA");
-    //   const filterButtons = await page.$$(".style__pill-content___QMdlA");
-    //   await filterButtons[2].click();
-    //   console.log("[SUCCESS]");
-    // } catch (error) {
-    //   console.log("[ERROR]");
-    //   console.error(error);
-    //   await browser.close();
-    //   return;
-    // }
+    try {
+      console.log("[8] clicking internship button...");
+      await page.waitForSelector(".style__pill-content___QMdlA");
+      const filterButtons = await page.$$(".style__pill-content___QMdlA");
+      await filterButtons[2].click();
+      console.log("[SUCCESS]");
+    } catch (error) {
+      console.log("[ERROR]");
+      console.error(error);
+      await browser.close();
+      return;
+    }
 
     // filter by date
     try {
-      console.log("[8] filtering by date...");
+      console.log("[9] filtering by date...");
       const sortByButton = await page.waitForSelector(
         "button[data-hook='button'][aria-label='Filter by']"
       );
