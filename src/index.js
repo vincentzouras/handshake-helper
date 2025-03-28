@@ -1,7 +1,6 @@
 import "dotenv/config";
-import puppeteer from "puppeteer"; // puppeteer-extra
+import puppeteer from "puppeteer";
 import sendEmail from "./sendEmail.js";
-//import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 const username = process.env.HANDSHAKE_USERNAME;
 const password = process.env.HANDSHAKE_PASSWORD;
@@ -92,7 +91,7 @@ async function main() {
 
 async function initializeHandshake() {
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     args: [
       "--no-sandbox", // Disable sandbox for better performance
       "--disable-setuid-sandbox", // Disable sandbox for better performance
