@@ -129,7 +129,7 @@ async function initializeHandshake() {
       console.log("[ERROR]");
       console.error(error);
       await browser.close();
-      return;
+      process.exit(0);
     }
 
     // Close modal
@@ -256,3 +256,4 @@ async function initializeHandshake() {
 }
 
 main();
+process.exit(1);
