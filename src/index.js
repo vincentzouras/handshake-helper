@@ -2,23 +2,22 @@ import "dotenv/config";
 import puppeteer from "puppeteer";
 import sendEmail from "./sendEmail.js";
 
-const username = process.env.HANDSHAKE_USERNAME;
-const password = process.env.HANDSHAKE_PASSWORD;
-const town = process.env.TOWN;
+const USERNAME = process.env.HANDSHAKE_USERNAME;
+const PASSWORD = process.env.HANDSHAKE_PASSWORD;
+const JOB_PAGE = process.env.JOB_PAGE;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let attempts = 0;
 
 console.log("[START] starting handshake automation...");
 
 async function main() {
-  let init = await initializeHandshake();
+  const browser = await loginHandshake();
+  let page = await browser.newPage();
+  await page.goto(`${JOB_PAGE}`);
 
-  if (!init) {
-    return;
-  }
-
-  let browser = init.browser;
-  let page = init.page;
+  page.setDefaultTimeout(120000); // 2 minutes in milliseconds
 
   try {
     // initialize jobs currently being displayed
@@ -33,14 +32,16 @@ async function main() {
       try {
         await page.waitForSelector(`[data-hook="jobs-card"]`);
       } catch (error) {
-        console.log("[!] not detecting jobs, reinitializing handshake...");
-        await browser.close();
-        init = await initializeHandshake();
-        if (!init) {
-          return;
+        if (attempts > 3) {
+          console.log("[!] too many attempts, exiting...");
+          await browser.close();
+          process.exit(0);
         }
-        browser = init.browser;
-        page = init.page;
+        attempts++;
+        console.log("[!] not detecting jobs, reopening job page...");
+        await page.close();
+        page = await browser.newPage();
+        await page.goto(`${JOB_PAGE}`);
         continue;
       }
       const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
@@ -89,9 +90,9 @@ async function main() {
   }
 }
 
-async function initializeHandshake() {
+async function loginHandshake() {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     args: [
       "--no-sandbox", // Disable sandbox for better performance
       "--disable-setuid-sandbox", // Disable sandbox for better performance
@@ -103,27 +104,29 @@ async function initializeHandshake() {
   try {
     // open handshake
     console.log("[1] opening handshake website...");
-    const page = await browser.newPage();
+    const loginPage = await browser.newPage();
 
-    await page.setDefaultTimeout(120000); // 2 minutes in milliseconds
+    await loginPage.setDefaultTimeout(120000); // 2 minutes in milliseconds
 
-    await page.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
+    await loginPage.goto(
+      "https://lehigh.joinhandshake.com/login?ref=app-domain"
+    );
     console.log("[SUCCESS]");
 
     // login
     try {
       console.log("[2] logging in...");
-      const ssoButton = await page.waitForSelector(".sso-button");
+      const ssoButton = await loginPage.waitForSelector(".sso-button");
       await ssoButton.click();
-      await page.waitForSelector("#username");
-      await page.type("#username", username);
-      await page.type("#password", password);
+      await loginPage.waitForSelector("#username");
+      await loginPage.type("#username", USERNAME);
+      await loginPage.type("#password", PASSWORD);
 
-      await page.waitForSelector("#regularsubmit");
-      await page.click("#regularsubmit");
+      await loginPage.waitForSelector("#regularsubmit");
+      await loginPage.click("#regularsubmit");
 
-      await page.waitForSelector("#trust-browser-button");
-      await page.click("#trust-browser-button");
+      await loginPage.waitForSelector("#trust-browser-button");
+      await loginPage.click("#trust-browser-button");
       console.log("[SUCCESS]");
     } catch (error) {
       console.log("[ERROR]");
@@ -132,123 +135,17 @@ async function initializeHandshake() {
       process.exit(0);
     }
 
-    // Close modal
-    try {
-      console.log("[3] closing modal...");
-      const closeButton =
-        'button[data-hook="close-bootstrapping-follows-modal"]';
-      await page.waitForSelector(closeButton);
-      await page.click(closeButton);
-      await page.waitForSelector(closeButton, { hidden: true });
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
+    await loginPage.waitForFunction(
+      'window.location.href === "https://lehigh.joinhandshake.com/explore"'
+    );
+    await loginPage.waitForNavigation({ waitUntil: "load" });
 
-    // Click Jobs link
-    try {
-      console.log("[4] navigating to jobs page...");
-      const jobsChild = await page.waitForSelector("text/Jobs");
-      const jobsParent = await jobsChild.evaluateHandle(
-        (el) => el.parentElement
-      );
-      await jobsParent.click();
-      await page.waitForNavigation({ waitUntil: "networkidle0" });
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
+    await loginPage.close();
 
-    // Click Location button
-    try {
-      console.log("[5] clicking location filter...");
-      await page.waitForSelector(".style__pill-content___QMdlA");
-      const filterButtons = await page.$$(".style__pill-content___QMdlA");
-      await filterButtons[0].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
-
-    // Search for town
-    try {
-      console.log("[6] searching for town...");
-      await page.waitForSelector("#locations-filter");
-      await page.type("#locations-filter", town);
-      await sleep(2000);
-      const checkboxes = await page.$$('input[type="checkbox"]');
-      await checkboxes[0].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
-
-    // set distance to 25 miles
-    try {
-      console.log("[7] setting distance to 25 miles...");
-      const slider = await page.$('input[name="locationDistance"]');
-      await slider.scrollIntoView();
-      const box = await slider.boundingBox();
-      const xOffset = box.width * 0.3;
-      await page.mouse.move(box.x + 1, box.y + box.height / 2);
-      await page.mouse.down();
-      await page.mouse.move(box.x + xOffset, box.y + box.height / 2);
-      await page.mouse.up();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
-
-    // click internship button
-    try {
-      console.log("[8] clicking internship button...");
-      await page.waitForSelector(".style__pill-content___QMdlA");
-      const filterButtons = await page.$$(".style__pill-content___QMdlA");
-      await filterButtons[2].click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
-
-    // filter by date
-    try {
-      console.log("[9] filtering by date...");
-      const sortByButton = await page.waitForSelector(
-        "button[data-hook='button'][aria-label='Filter by']"
-      );
-      await sortByButton.click();
-      const sortByOptions = await page.waitForSelector("#sort-by-created_at");
-      await sortByOptions.click();
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      return;
-    }
-
-    console.log("[SUCCESS INITIALIZING]");
-    return { browser, page };
+    console.log("[SUCCESS LOGIN]");
+    return browser;
   } catch (error) {
-    console.log("[ERROR INITIALIZING]");
+    console.log("[ERROR LOGIN]");
     console.error(error);
     await browser.close();
     return;
@@ -256,4 +153,3 @@ async function initializeHandshake() {
 }
 
 main();
-process.exit(1);
