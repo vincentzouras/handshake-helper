@@ -5,6 +5,7 @@ import sendEmail from "./sendEmail.js";
 const USERNAME = process.env.HANDSHAKE_USERNAME;
 const PASSWORD = process.env.HANDSHAKE_PASSWORD;
 const JOB_PAGE = process.env.JOB_PAGE;
+const HEADLESS = process.env.HEADLESS;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -92,7 +93,7 @@ async function main() {
 
 async function loginHandshake() {
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: HEADLESS === "true",
     args: [
       "--no-sandbox", // Disable sandbox for better performance
       "--disable-setuid-sandbox", // Disable sandbox for better performance
