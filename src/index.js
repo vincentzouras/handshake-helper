@@ -31,7 +31,9 @@ async function main() {
     // search for new jobs every 5 minutes
     while (true) {
       try {
+        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
         await page.waitForSelector(`[data-hook="jobs-card"]`);
+        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
       } catch (error) {
         if (attempts > 3) {
           console.log("[!] too many attempts, exiting...");
@@ -39,7 +41,11 @@ async function main() {
           process.exit(0);
         }
         attempts++;
+        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+
         console.log("[!] not detecting jobs, reopening job page...");
+        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+
         await page.close();
         page = await browser.newPage();
         await page.goto(`${JOB_PAGE}`);
@@ -69,7 +75,11 @@ async function main() {
       await sleep(30 * 60 * 1000); // 30 minutes
     }
   } catch (error) {
+    await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+
     console.log("[ERROR]");
+    await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+
     console.error(error);
     await browser.close();
   } finally {
