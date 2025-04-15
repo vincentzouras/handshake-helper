@@ -24,9 +24,9 @@ async function main() {
     // initialize jobs currently being displayed
     await page.waitForSelector(`[data-hook="jobs-card"]`);
     const jobElements = await page.$$(`[data-hook="jobs-card"]`);
-    let jobIds = await Promise.all(
-      jobElements.map((job) => job.evaluate((el) => el.id))
-    );
+    let jobIds = await Promise.all(jobElements.map((job) => job.evaluate((el) => el.id)));
+
+    sendEmail("SUCCESS", "https://app.joinhandshake.com/jobs/1234567890", "test");
 
     // search for new jobs every 5 minutes
     while (true) {
@@ -46,32 +46,19 @@ async function main() {
         continue;
       }
       const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
-      const currJobIds = await Promise.all(
-        currJobElements.map((job) => job.evaluate((el) => el.id))
-      );
+      const currJobIds = await Promise.all(currJobElements.map((job) => job.evaluate((el) => el.id)));
       const newJobsIds = currJobIds.filter((id) => !jobIds.includes(id));
 
       // notify of new jobs
       if (newJobsIds.length > 0) {
         for (let newJobId of newJobsIds) {
           const newJob = await page.$(`#${newJobId}`);
-          const jobLink = await newJob.evaluate((el) =>
-            el.getAttribute("href")
-          );
-          const jobTitle = await newJob.$eval("h3", (el) =>
-            el.textContent.trim()
-          );
+          const jobLink = await newJob.evaluate((el) => el.getAttribute("href"));
+          const jobTitle = await newJob.$eval("h3", (el) => el.textContent.trim());
 
-          const companyName = await newJob.$eval(
-            "div > div > div > span",
-            (el) => el.textContent.trim()
-          );
+          const companyName = await newJob.$eval("div > div > div > span", (el) => el.textContent.trim());
 
-          sendEmail(
-            jobTitle,
-            `https://app.joinhandshake.com${jobLink}`,
-            companyName
-          );
+          sendEmail(jobTitle, `https://app.joinhandshake.com${jobLink}`, companyName);
         }
         console.log("[FOUND NEW JOBS] email sent?");
         jobIds = currJobIds;
@@ -79,7 +66,7 @@ async function main() {
         console.log("[NO NEW JOBS] " + new Date().toLocaleString());
       }
       await page.reload();
-      await sleep(5 * 60 * 1000); // 5 minutes
+      await sleep(30 * 60 * 1000); // 30 minutes
     }
   } catch (error) {
     console.log("[ERROR]");
@@ -109,9 +96,7 @@ async function loginHandshake() {
 
     await loginPage.setDefaultTimeout(120000); // 2 minutes in milliseconds
 
-    await loginPage.goto(
-      "https://lehigh.joinhandshake.com/login?ref=app-domain"
-    );
+    await loginPage.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
     console.log("[SUCCESS]");
 
     // login
@@ -136,9 +121,7 @@ async function loginHandshake() {
       process.exit(0);
     }
 
-    await loginPage.waitForFunction(
-      'window.location.href === "https://lehigh.joinhandshake.com/explore"'
-    );
+    await loginPage.waitForFunction('window.location.href === "https://lehigh.joinhandshake.com/explore"');
     await loginPage.waitForNavigation({ waitUntil: "load" });
 
     await loginPage.close();
