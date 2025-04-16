@@ -1,6 +1,9 @@
 import "dotenv/config";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-extra";
 import sendEmail from "./sendEmail.js";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+
+puppeteer.use(StealthPlugin());
 
 const USERNAME = process.env.HANDSHAKE_USERNAME;
 const PASSWORD = process.env.HANDSHAKE_PASSWORD;
@@ -26,7 +29,7 @@ async function main() {
     const jobElements = await page.$$(`[data-hook="jobs-card"]`);
     let jobIds = await Promise.all(jobElements.map((job) => job.evaluate((el) => el.id)));
 
-    sendEmail("SUCCESS", "https://app.joinhandshake.com/jobs/1234567890", "test");
+    sendEmail("SUCCESS", jobElements[0], "Here is the first job for reference");
 
     // search for new jobs every 5 minutes
     while (true) {
