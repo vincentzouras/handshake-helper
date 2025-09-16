@@ -5,93 +5,15 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 puppeteer.use(StealthPlugin());
 
-const USERNAME = process.env.HANDSHAKE_USERNAME;
-const PASSWORD = process.env.HANDSHAKE_PASSWORD;
-const JOB_PAGE = process.env.JOB_PAGE;
+const JOB_PAGE =
+  "https://www.lockheedmartinjobs.com/search-jobs/intern/King%20of%20Prussia%2C%20PA/694/1/4/6252001-6254927-5201756-5216850-5196220/40x08927/-75x39602/5/2";
 const HEADLESS = process.env.HEADLESS;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let attempts = 0;
-
 console.log("[START] starting handshake automation...");
 
 async function main() {
-  const browser = await loginHandshake();
-  let page = await browser.newPage();
-  await page.goto(`${JOB_PAGE}`);
-
-  page.setDefaultTimeout(120000); // 2 minutes in milliseconds
-
-  try {
-    // initialize jobs currently being displayed
-    await page.waitForSelector(`[data-hook="jobs-card"]`);
-    const jobElements = await page.$$(`[data-hook="jobs-card"]`);
-    let jobIds = await Promise.all(jobElements.map((job) => job.evaluate((el) => el.id)));
-
-    sendEmail("SUCCESS", jobElements[0], "Here is the first job for reference");
-
-    // search for new jobs every 5 minutes
-    while (true) {
-      try {
-        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-        await page.waitForSelector(`[data-hook="jobs-card"]`);
-        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-      } catch (error) {
-        if (attempts > 3) {
-          console.log("[!] too many attempts, exiting...");
-          await browser.close();
-          process.exit(0);
-        }
-        attempts++;
-        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-
-        console.log("[!] not detecting jobs, reopening job page...");
-        await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-
-        await page.close();
-        page = await browser.newPage();
-        await page.goto(`${JOB_PAGE}`);
-        continue;
-      }
-      const currJobElements = await page.$$(`[data-hook="jobs-card"]`);
-      const currJobIds = await Promise.all(currJobElements.map((job) => job.evaluate((el) => el.id)));
-      const newJobsIds = currJobIds.filter((id) => !jobIds.includes(id));
-
-      // notify of new jobs
-      if (newJobsIds.length > 0) {
-        for (let newJobId of newJobsIds) {
-          const newJob = await page.$(`#${newJobId}`);
-          const jobLink = await newJob.evaluate((el) => el.getAttribute("href"));
-          const jobTitle = await newJob.$eval("h3", (el) => el.textContent.trim());
-
-          const companyName = await newJob.$eval("div > div > div > span", (el) => el.textContent.trim());
-
-          sendEmail(jobTitle, `https://app.joinhandshake.com${jobLink}`, companyName);
-        }
-        console.log("[FOUND NEW JOBS] email sent?");
-        jobIds = currJobIds;
-      } else {
-        console.log("[NO NEW JOBS] " + new Date().toLocaleString());
-      }
-      await page.reload();
-      await sleep(30 * 60 * 1000); // 30 minutes
-    }
-  } catch (error) {
-    await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-
-    console.log("[ERROR]");
-    await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
-
-    console.error(error);
-    await browser.close();
-  } finally {
-    console.log("[FINISH] closing browser...");
-    await browser.close();
-  }
-}
-
-async function loginHandshake() {
   const browser = await puppeteer.launch({
     headless: HEADLESS === "true",
     args: [
@@ -102,50 +24,80 @@ async function loginHandshake() {
       "--disable-software-rasterizer", // Disable software rendering
     ],
   });
+  let page = await browser.newPage();
+  await page.goto(`${JOB_PAGE}`);
+
+  page.setDefaultTimeout(60000); // 1 minute in milliseconds
+
   try {
-    // open handshake
-    console.log("[1] opening handshake website...");
-    const loginPage = await browser.newPage();
+    // initialize jobs currently being displayed
+    await page.waitForSelector(`#search-results-list ul li`);
+    const jobs = await page.$$eval("#search-results-list ul li", (items) => {
+      return items.map((li) => {
+        const title = li.querySelector(".job-title")?.textContent.trim();
+        const location = li.querySelector(".job-location")?.textContent.trim();
+        const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
+        const jobId = li.querySelector(".job-id")?.textContent.trim();
+        const link = li.querySelector("a")?.href;
+        return { title, location, datePosted, jobId, link };
+      });
+    });
 
-    await loginPage.setDefaultTimeout(120000); // 2 minutes in milliseconds
+    sendEmail(jobs[0]);
 
-    await loginPage.goto("https://lehigh.joinhandshake.com/login?ref=app-domain");
-    console.log("[SUCCESS]");
+    // search for new jobs
+    let attempts = 0;
+    while (true) {
+      try {
+        await page.waitForSelector(`#search-results-list ul li`);
+      } catch (error) {
+        if (attempts > 3) {
+          await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+          console.log("[!] too many attempts, exiting...");
+          await browser.close();
+          process.exit(0);
+        }
+        attempts++;
+        console.log("[!] not detecting jobs, reopening job page...");
+        await page.close();
+        page = await browser.newPage();
+        await page.goto(`${JOB_PAGE}`);
+        continue;
+      }
+      const currJobs = await page.$$eval("#search-results-list ul li", (items) => {
+        return items.map((li) => {
+          const title = li.querySelector(".job-title")?.textContent.trim();
+          const location = li.querySelector(".job-location")?.textContent.trim();
+          const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
+          const jobId = li.querySelector(".job-id")?.textContent.trim();
+          const link = li.querySelector("a")?.href;
+          return { title, location, datePosted, jobId, link };
+        });
+      });
 
-    // login
-    try {
-      console.log("[2] logging in...");
-      const ssoButton = await loginPage.waitForSelector(".sso-button");
-      await ssoButton.click();
-      await loginPage.waitForSelector("#username");
-      await loginPage.type("#username", USERNAME);
-      await loginPage.type("#password", PASSWORD);
+      const existingJobIds = jobs.map((j) => j.jobId);
+      const newJobs = currJobs.filter((job) => !existingJobIds.includes(job.jobId));
 
-      await loginPage.waitForSelector("#regularsubmit");
-      await loginPage.click("#regularsubmit");
-
-      await loginPage.waitForSelector("#trust-browser-button");
-      await loginPage.click("#trust-browser-button");
-      console.log("[SUCCESS]");
-    } catch (error) {
-      console.log("[ERROR]");
-      console.error(error);
-      await browser.close();
-      process.exit(0);
+      // notify of new jobs
+      if (newJobs.length > 0) {
+        for (const newJob of newJobs) {
+          sendEmail(newJob);
+        }
+        console.log("[FOUND NEW JOBS] email sent?");
+        jobs.push(...newJobs);
+      } else {
+        console.log("[NO NEW JOBS] " + new Date().toLocaleString());
+      }
+      await page.reload();
+      await sleep(3 * 60 * 60 * 1000); // 3 hours
     }
-
-    await loginPage.waitForFunction('window.location.href === "https://lehigh.joinhandshake.com/explore"');
-    await loginPage.waitForNavigation({ waitUntil: "load" });
-
-    await loginPage.close();
-
-    console.log("[SUCCESS LOGIN]");
-    return browser;
   } catch (error) {
-    console.log("[ERROR LOGIN]");
+    await page.screenshot({ path: `error_screenshot_${Date.now()}.png` });
+    console.log("[ERROR]");
     console.error(error);
+  } finally {
+    console.log("[FINISH] closing browser...");
     await browser.close();
-    return;
   }
 }
 
