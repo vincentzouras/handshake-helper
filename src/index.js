@@ -32,16 +32,19 @@ async function main() {
   try {
     // initialize jobs currently being displayed
     await page.waitForSelector(`#search-results-list ul li`);
-    const jobs = await page.$$eval("#search-results-list ul li", (items) => {
-      return items.map((li) => {
-        const title = li.querySelector(".job-title")?.textContent.trim();
-        const location = li.querySelector(".job-location")?.textContent.trim();
-        const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
-        const jobId = li.querySelector(".job-id")?.textContent.trim();
-        const link = li.querySelector("a")?.href;
-        return { title, location, datePosted, jobId, link };
-      });
-    });
+
+    const jobs = (
+      await page.$$eval("#search-results-list ul li", (items) => {
+        return items.map((li) => {
+          const title = li.querySelector(".job-title")?.textContent.trim();
+          const location = li.querySelector(".job-location")?.textContent.trim();
+          const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
+          const jobId = li.querySelector(".job-id")?.textContent.trim();
+          const link = li.querySelector("a")?.href;
+          return { title, location, datePosted, jobId, link };
+        });
+      })
+    ).filter((job) => job.title && job.title.toLowerCase().includes("software"));
 
     sendEmail(jobs[0]);
 
@@ -64,16 +67,18 @@ async function main() {
         await page.goto(`${JOB_PAGE}`);
         continue;
       }
-      const currJobs = await page.$$eval("#search-results-list ul li", (items) => {
-        return items.map((li) => {
-          const title = li.querySelector(".job-title")?.textContent.trim();
-          const location = li.querySelector(".job-location")?.textContent.trim();
-          const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
-          const jobId = li.querySelector(".job-id")?.textContent.trim();
-          const link = li.querySelector("a")?.href;
-          return { title, location, datePosted, jobId, link };
-        });
-      });
+      const currJobs = (
+        await page.$$eval("#search-results-list ul li", (items) => {
+          return items.map((li) => {
+            const title = li.querySelector(".job-title")?.textContent.trim();
+            const location = li.querySelector(".job-location")?.textContent.trim();
+            const datePosted = li.querySelector(".job-date-posted")?.textContent.trim();
+            const jobId = li.querySelector(".job-id")?.textContent.trim();
+            const link = li.querySelector("a")?.href;
+            return { title, location, datePosted, jobId, link };
+          });
+        })
+      ).filter((job) => job.title && job.title.toLowerCase().includes("software"));
 
       const existingJobIds = jobs.map((j) => j.jobId);
       const newJobs = currJobs.filter((job) => !existingJobIds.includes(job.jobId));
